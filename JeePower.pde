@@ -16,31 +16,25 @@ Port optoIn (3);
 // has to be defined because we're using the watchdog for low-power waiting
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
-int DEBUG = 0;
-int optostate1 = 0;
-int optostate2 = 0;
+boolean DEBUG = 1;
 
-// constants won't change. They're used here to 
 // set pin numbers:
-const byte buttonPin = 2;     // the number of the pushbutton pin
 const byte stateLED =  7;      // State LED hooked into DIO on Port 4 (should be PD7)
-const byte outputLED = 12;
 
 // variables will change:
 
 int ontimeout = 5000;        // time to wait before turning on
 int offtimeout = 15000;      // time to wait before turning off
 int timetogo = 0;
-int modresult = 0;		// The modulo result
-int flasher = 0;
+long flashtarget = 0;	     // Used for flashing the LED to indicate what is happening
+boolean flasher = 0;	     // LED state level
 
 long previousMillis = 0;      // last update time
 long elapsedMillis = 0;       // elapsed time
 long storedMillis = 0;  
 
 boolean timestored = 0;
-// boolean ignitionState = 0;         // variable for reading the pushbutton status
-int ignitionState = 0;
+boolean ignitionState = 0;         // variable for reading the pushbutton status
 boolean active = false;
 boolean countingdown = false;
 
@@ -67,15 +61,11 @@ void setup() {
 
   // initialize the LED pins as outputs:
   pinMode(stateLED, OUTPUT);
-  pinMode(outputLED, OUTPUT);;  
-  // initialize the pushbutton pin as an input:
-  pinMode(buttonPin, INPUT);     
 
-  byte state = 0;  
   for (byte i = 0; i <= 10; ++i) {
-    digitalWrite(stateLED, state);
+    digitalWrite(stateLED, flasher);
     delay(250);
-    state = !state;
+    flasher = !flasher;
   }
   if (DEBUG) { Serial.println("Ready"); }
 }
@@ -87,8 +77,7 @@ void loop(){
     if (DEBUG == 1) { Serial.print("Recieved : "); Serial.println(rf12_data[0]); }
   }
   
-  // read the state of the pushbutton value:
-  // ignitionState = digitalRead(buttonPin);
+  // read the state of the ignition
   ignitionState = !optoIn.digiRead2();
   // if (DEBUG) { Serial.print("Ign state : "); Serial.println(ignitionState); }
 
@@ -97,6 +86,7 @@ void loop(){
       if (timestored == 0) {
         // Ignition has just been turned on, and time has to be stored and made ready for counting up.
         timestored = 1;
+	flashtarget = 0;
         storedMillis = currentMillis;
         if (DEBUG) { Serial.print("Storing time : "); Serial.println(currentMillis); }
       }
@@ -105,13 +95,13 @@ void loop(){
         elapsedMillis = currentMillis - storedMillis;
         if (elapsedMillis > ontimeout) { active = 1; }
         if (DEBUG) { Serial.print("Elapsed time : "); Serial.println(elapsedMillis); }
-	modresult = elapsedMillis % 200;
-	if (modresult == 0) { 
+	// Flash the LED as we're counting up
+	if (flashtarget <= elapsedMillis) {
 	  digitalWrite(stateLED, flasher);
 	  flasher = !flasher; 
+	  flashtarget = elapsedMillis + 100;
 	}
       }
-
     } else {
       // Everything is off
       digitalWrite(stateLED, LOW);
@@ -132,12 +122,11 @@ void loop(){
       if (countingdown == 1) {
         timetogo = (offtimeout + storedMillis) - currentMillis; // Time left is the current time
         if (DEBUG) {Serial.print("Runtime left : "); Serial.println(timetogo);}
-        modresult = timetogo % 50;
-        if (modresult == 0) {
-          digitalWrite(stateLED, flasher);
-          flasher = !flasher;
+	if (timetogo <= flashtarget - 50) {
+	  digitalWrite(stateLED, flasher);
+	  flasher = !flasher;
+	  flashtarget = timetogo;
 	}
-	relays.digiWrite(1);
       }
       if (timetogo <= 0 && countingdown == 1) {
         // That's us at the end. Reset some variables for reactivation and power off
@@ -145,7 +134,7 @@ void loop(){
         active = false;
         timetogo = 0;
         countingdown = 0;
-        digitalWrite(outputLED, LOW);
+        digitalWrite(stateLED, LOW);
 	relays.digiWrite(0);
       }
     }
@@ -153,6 +142,7 @@ void loop(){
       // What do we do when the ignition comes back on during the countdown?
       // This is also the normal state for when the countup has completed and the ignition is on and running
       countingdown = 0;
+      flashtarget = offtimeout;
       digitalWrite(stateLED, HIGH);
       relays.digiWrite(1);
     }
