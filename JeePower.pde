@@ -10,8 +10,8 @@
 #include <Ports.h>
 #include <RF12.h>
 
-Port relays (2);
-Port optoIn (3);
+Port relays (4);
+Port optoIn (1);
 
 // has to be defined because we're using the watchdog for low-power waiting
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
@@ -19,7 +19,7 @@ ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 boolean DEBUG = 1;
 
 // set pin numbers:
-const byte stateLED =  7;      // State LED hooked into DIO on Port 4 (should be PD7)
+const byte stateLED =  6;      // State LED hooked into DIO on Port 3 (should be PD7)
 
 // variables will change:
 
@@ -34,18 +34,26 @@ long elapsedMillis = 0;       // elapsed time
 long storedMillis = 0;  
 
 boolean timestored = 0;
-boolean ignitionState = 0;         // variable for reading the pushbutton status
+boolean ignitionState = 0;      // variable for reading the pushbutton status
+boolean oilState = 0;		// variable for oil pressure state
 boolean active = false;
 boolean countingdown = false;
 
 void setup() {
   if (DEBUG) {           // If we want to see the pin values for debugging...
     Serial.begin(57600);  // ...set up the serial ouput on 0004 style
-    Serial.println("\n[cartracker]");
+    Serial.print("\n[cartracker]");
   }
 
   // Initialize the RF12 module. Node ID 30, 868MHZ, Network group 5
-  rf12_initialize(30, RF12_868MHZ, 5);
+  // rf12_initialize(30, RF12_868MHZ, 5);
+
+  // This calls rf12_initialize() with settings obtained from EEPROM address 0x20 .. 0x3F.
+  // These settings can be filled in by the RF12demo sketch in the RF12 library
+  rf12_config();
+  
+  // Set up the easy transmission mechanism
+  rf12_easyInit(0);
 
   // Set up the relays as digital output devices
   relays.digiWrite(0);
@@ -77,9 +85,11 @@ void loop(){
     if (DEBUG == 1) { Serial.print("Recieved : "); Serial.println(rf12_data[0]); }
   }
   
-  // read the state of the ignition
+  // read the state of the ignition and oil pressure to tell if engine is running
   ignitionState = !optoIn.digiRead2();
+  oilState = !optoIn.digiRead();
   // if (DEBUG) { Serial.print("Ign state : "); Serial.println(ignitionState); }
+  // if (DEBUG) { Serial.print("Oil state : "); Serial.println(oilState); }
 
   if (active == false) {
     if (ignitionState == 1) { 
