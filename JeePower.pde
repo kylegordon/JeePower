@@ -19,18 +19,20 @@ ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 boolean DEBUG = 1;
 
 // set pin numbers:
-const byte stateLED =  6;      // State LED hooked into DIO on Port 3 (should be PD7)
+const byte stateLED =  16;      // State LED hooked onto Port 3 AIO (PC2)
+const int buzzPin = 6;		// State LED hooked into Port 3 DIO (PD6)
 
 // variables will change:
 
-int ontimeout = 5000;        // time to wait before turning on
-int offtimeout = 15000;      // time to wait before turning off
+int ontimeout = 5000;		// time to wait before turning on
+int offtimeout = 15000;		// time to wait before turning off
 int timetogo = 0;
-long flashtarget = 0;	     // Used for flashing the LED to indicate what is happening
-boolean flasher = 0;	     // LED state level
+long flashtarget = 0;		// Used for flashing the LED to indicate what is happening
+boolean flasher = 0;		// LED state level
+byte buzzTone = 196;		// Buzzer tone
 
-long previousMillis = 0;      // last update time
-long elapsedMillis = 0;       // elapsed time
+long previousMillis = 0;	// last update time
+long elapsedMillis = 0;		// elapsed time
 long storedMillis = 0;  
 
 boolean timestored = 0;
@@ -72,7 +74,9 @@ void setup() {
 
   for (byte i = 0; i <= 10; ++i) {
     digitalWrite(stateLED, flasher);
+    if (flasher) {tone(buzzPin,buzzTone,1000); }
     delay(250);
+    if (flasher) {noTone(buzzPin); }
     flasher = !flasher;
   }
   if (DEBUG) { Serial.println("Ready"); }
