@@ -32,7 +32,7 @@ Port optoIn (1);
 // has to be defined because we're using the watchdog for low-power waiting
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
-boolean DEBUG = 1;
+boolean DEBUG = 0;
 
 // set pin numbers:
 const byte stateLED =  16;      // State LED hooked onto Port 3 AIO (PC2)
@@ -99,6 +99,9 @@ void setup() {
 }
 
 void loop(){
+
+  // Sleepy::loseSomeTime() screws up serial output
+  if (!DEBUG) {Sleepy::loseSomeTime(30000);}		// Snooze for 30 seconds
   unsigned long currentMillis = millis();
 
   if (rf12_recvDone() && rf12_crc == 0 && rf12_len == 1) {
