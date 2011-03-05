@@ -60,7 +60,8 @@ boolean countingdown = false;
 void setup() {
   if (DEBUG) {           // If we want to see the pin values for debugging...
     Serial.begin(57600);  // ...set up the serial ouput on 0004 style
-    Serial.print("\n[cartracker]");
+    Serial.println("\n[cartracker]");
+    Serial.println("Band, ID, Group, Freq");
   }
 
   // Initialize the RF12 module. Node ID 30, 868MHZ, Network group 5
