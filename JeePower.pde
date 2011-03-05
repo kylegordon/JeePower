@@ -7,6 +7,22 @@
  http://lodge.glasgownet.com
 */
 
+/*                 JeeNode / JeeNode USB / JeeSMD 
+ -------|-----------------------|----|-----------------------|----       
+ |       |D3  A1 [Port2]  D5     |    |D3  A0 [port1]  D4     |    |
+ |-------|IRQ AIO +3V GND DIO PWR|    |IRQ AIO +3V GND DIO PWR|    |
+ | D1|TXD|                                           ---- ----     |
+ | A5|SCL|                                       D12|MISO|+3v |    |
+ | A4|SDA|   Atmel Atmega 328                    D13|SCK |MOSI|D11 |
+ |   |PWR|   JeeNode / JeeNode USB / JeeSMD         |RST |GND |    |
+ |   |GND|                                       D8 |BO  |B1  |D9  |
+ | D0|RXD|                                           ---- ----     |
+ |-------|PWR DIO GND +3V AIO IRQ|    |PWR DIO GND +3V AIO IRQ|    |
+ |       |    D6 [Port3]  A2  D3 |    |    D7 [Port4]  A3  D3 |    |
+  -------|-----------------------|----|-----------------------|----
+*/
+
+
 #include <Ports.h>
 #include <RF12.h>
 
@@ -24,8 +40,8 @@ const int buzzPin = 6;		// State LED hooked into Port 3 DIO (PD6)
 
 // variables will change:
 
-int ontimeout = 5000;		// time to wait before turning on
-int offtimeout = 15000;		// time to wait before turning off
+int ontimeout = 30000;		// time to wait before turning on (30 seconds)
+int offtimeout = 90000;		// time to wait before turning off (15 minutes)
 int timetogo = 0;
 long flashtarget = 0;		// Used for flashing the LED to indicate what is happening
 boolean flasher = 0;		// LED state level
@@ -96,7 +112,7 @@ void loop(){
   // if (DEBUG) { Serial.print("Oil state : "); Serial.println(oilState); }
 
   if (active == false) {
-    if (ignitionState == 1) { 
+    if (ignitionState == 1 && oilState == 0) { 
       if (timestored == 0) {
         // Ignition has just been turned on, and time has to be stored and made ready for counting up.
         timestored = 1;
@@ -111,8 +127,15 @@ void loop(){
         if (DEBUG) { Serial.print("Elapsed time : "); Serial.println(elapsedMillis); }
 	// Flash the LED as we're counting up
 	if (flashtarget <= elapsedMillis) {
-	  digitalWrite(stateLED, flasher);
-	  flasher = !flasher; 
+	    for (byte i = 0; i <= 2; ++i) {
+	      digitalWrite(stateLED, flasher);
+	      if (flasher) {tone(buzzPin,buzzTone,1000); }
+	      delay(100); // Can this not be avoided by using the flashtarget and using if (!flasher) below?
+	      if (flasher) {noTone(buzzPin); }
+	      flasher = !flasher;
+	    }
+	  // digitalWrite(stateLED, flasher);
+	  // flasher = !flasher; 
 	  flashtarget = elapsedMillis + 100;
 	}
       }
@@ -137,8 +160,15 @@ void loop(){
         timetogo = (offtimeout + storedMillis) - currentMillis; // Time left is the current time
         if (DEBUG) {Serial.print("Runtime left : "); Serial.println(timetogo);}
 	if (timetogo <= flashtarget - 50) {
-	  digitalWrite(stateLED, flasher);
-	  flasher = !flasher;
+          for (byte i = 0; i <= 2; ++i) {
+            digitalWrite(stateLED, flasher);
+            if (flasher) {tone(buzzPin,buzzTone,1000); }
+            delay(100); // Can this not be avoided by using the flashtarget and using if (!flasher) below?
+            if (flasher) {noTone(buzzPin); }
+            flasher = !flasher;
+          }
+	  //digitalWrite(stateLED, flasher);
+	  //flasher = !flasher;
 	  flashtarget = timetogo;
 	}
       }
