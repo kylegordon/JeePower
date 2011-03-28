@@ -24,15 +24,23 @@
 
 
 #include <Ports.h>
+#include <PortsLCD.h>
 #include <RF12.h>
+#include <RF12sio.h>
 
-Port relays (4);
-Port optoIn (1);
+RF12 RF12;
+
+Port optoIn (1);		// Port 1 : Optoisolator inputs
+PortI2C myI2C (2);		// Port 2 : I2C driven LCD display for debugging
+				// Port 3 : Buzzer on DIO and LED on AIO
+Port relays (4);		// Port 4 : Output relays
+
+LiquidCrystalI2C lcd (myI2C);
 
 // has to be defined because we're using the watchdog for low-power waiting
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
-boolean DEBUG = 0;
+boolean DEBUG = 1;
 
 // set pin numbers:
 const byte stateLED =  16;      // State LED hooked onto Port 3 AIO (PC2)
@@ -96,12 +104,18 @@ void setup() {
     flasher = !flasher;
   }
   if (DEBUG) { Serial.println("Ready"); }
+  if (DEBUG) {
+    int val = 100;
+    rf12_easyPoll();
+    rf12_easySend(&val, sizeof val);
+    rf12_easyPoll();
+  }
 }
 
 void loop(){
 
   // Sleepy::loseSomeTime() screws up serial output
-  if (!DEBUG) {Sleepy::loseSomeTime(30000);}		// Snooze for 30 seconds
+  //if (!DEBUG) {Sleepy::loseSomeTime(30000);}		// Snooze for 30 seconds
   unsigned long currentMillis = millis();
 
   if (rf12_recvDone() && rf12_crc == 0 && rf12_len == 1) {
@@ -170,8 +184,6 @@ void loop(){
             if (flasher) {noTone(buzzPin); }
             flasher = !flasher;
           }
-	  //digitalWrite(stateLED, flasher);
-	  //flasher = !flasher;
 	  flashtarget = timetogo;
 	}
       }
