@@ -160,6 +160,7 @@ void loop(){
       // Everything is off
       digitalWrite(stateLED, LOW);
       relays.digiWrite(LOW);
+      relays.digiWrite2(LOW);
       timestored = 0;
       storedMillis = 0;
     }
@@ -194,7 +195,8 @@ void loop(){
         timetogo = 0;
         countingdown = 0;
         digitalWrite(stateLED, LOW);
-	relays.digiWrite(0);
+	relays.digiWrite(LOW);
+	relays.digiWrite2(LOW);
       }
     }
     if (ignitionState == 1) {
@@ -205,6 +207,10 @@ void loop(){
       digitalWrite(stateLED, HIGH);
       relays.digiWrite(1);
     }
+    if (ignitionState == 1 && relays.digiread2()) {
+	 	// moo
+	 }
+    
   }
 }
 
