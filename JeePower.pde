@@ -64,6 +64,7 @@ boolean ignitionState = 0;      // variable for reading the pushbutton status
 boolean oilState = 0;		// variable for oil pressure state
 boolean active = false;
 boolean countingdown = false;
+boolean	gpiorelay = 1;		// Used to store the state of the GPIO indicator relay. Usually on when all is well.
 
 void setup() {
   if (DEBUG) {           // If we want to see the pin values for debugging...
@@ -159,8 +160,9 @@ void loop(){
     } else {
       // Everything is off
       digitalWrite(stateLED, LOW);
-      relays.digiWrite(LOW);
-      relays.digiWrite2(LOW);
+      relays.digiWrite(LOW); // Turn off the ATX power
+      relays.digiWrite2(LOW); // Turn off the GPIO indicator output
+      gpiorelay = 0; // Take a note that we've turned off the relay that indicates the GPIO pin
       timestored = 0;
       storedMillis = 0;
     }
@@ -175,28 +177,29 @@ void loop(){
         countingdown = 1;
       }
       if (countingdown == 1) {
-        timetogo = (offtimeout + storedMillis) - currentMillis; // Time left is the current time
-        if (DEBUG) {Serial.print("Runtime left : "); Serial.println(timetogo);}
-	if (timetogo <= flashtarget - 50) {
-          for (byte i = 0; i <= 2; ++i) {
-            digitalWrite(stateLED, flasher);
-            if (flasher) {tone(buzzPin,buzzTone,1000); }
-            delay(100); // Can this not be avoided by using the flashtarget and using if (!flasher) below?
-            if (flasher) {noTone(buzzPin); }
-            flasher = !flasher;
-          }
-	  flashtarget = timetogo;
-	}
+			timetogo = (offtimeout + storedMillis) - currentMillis; // Time left is the current time
+			if (DEBUG) {Serial.print("Runtime left : "); Serial.println(timetogo);}
+			if (timetogo <= flashtarget - 50) {
+         	for (byte i = 0; i <= 2; ++i) {
+         	  	digitalWrite(stateLED, flasher);
+           		if (flasher) {tone(buzzPin,buzzTone,1000); }
+           		delay(100); // Can this not be avoided by using the flashtarget and using if (!flasher) below?
+           		if (flasher) {noTone(buzzPin); }
+           		flasher = !flasher;
+         	}
+				flashtarget = timetogo;
+			}
       }
       if (timetogo <= 0 && countingdown == 1) {
-        // That's us at the end. Reset some variables for reactivation and power off
-        if (DEBUG) {Serial.println("Power off"); }
-        active = false;
-        timetogo = 0;
-        countingdown = 0;
-        digitalWrite(stateLED, LOW);
-	relays.digiWrite(LOW);
-	relays.digiWrite2(LOW);
+      	// That's us at the end. Reset some variables for reactivation and power off
+			if (DEBUG) {Serial.println("Power off"); }
+			active = false;
+			timetogo = 0;
+			countingdown = 0;
+			digitalWrite(stateLED, LOW);
+			relays.digiWrite(LOW); // Turn off the ATX supply
+			relays.digiWrite2(LOW); // Turn off the GPIO indicator output
+			gpiorelay = 0; // Take a note that we've turned off the relay that indicates the GPIO pin
       }
     }
     if (ignitionState == 1) {
@@ -205,12 +208,13 @@ void loop(){
       countingdown = 0;
       flashtarget = offtimeout;
       digitalWrite(stateLED, HIGH);
-      relays.digiWrite(1);
+      relays.digiWrite(HIGH);
+      if (gpiorelay == 0) {
+      	// We're in a bad place. The ignition is back on, but we've already indicated to the Bifferboard that it should be shutting down.
+			// Wait a couple of minutes for the Bifferboard to shut down, and then toggle the ATX PSU
+		}
+
     }
-    if (ignitionState == 1 && relays.digiread2()) {
-	 	// moo
-	 }
-    
   }
 }
 
